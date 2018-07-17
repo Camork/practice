@@ -1,0 +1,22 @@
+apply plugin: 'java'
+apply plugin: 'maven'
+
+group = 'practise'
+
+dependencies {
+    compile group: 'commons-io', name: 'commons-io', version:'2.6'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-core', version:'2.11.1'
+    compile group: 'org.apache.httpcomponents', name: 'httpclient', version:'4.5.3'
+    compile group: 'org.jsoup', name: 'jsoup', version:'1.10.2'
+    compile group: 'org.junit.jupiter', name: 'junit-jupiter-api', version:'5.3.0'
+    compile group: 'org.junit.jupiter', name: 'junit-jupiter-params', version:'5.3.0'
+    compile group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version:'5.3.0'
+    compile group: 'org.dom4j', name: 'dom4j', version:'2.1.1'
+}
+
+repositories {
+    mavenCentral()
+    maven { url "https://maven.aliyun.com/repository/central" }
+}
+
+[compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
