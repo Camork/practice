@@ -1,0 +1,21 @@
+subprojects {
+    apply plugin: 'java'
+    
+    plugins.withType(JavaPlugin) {
+        sourceCompatibility = "1.8"
+        targetCompatibility = "1.8"
+
+    }
+
+    repositories {
+        mavenLocal()
+
+        maven {
+            url "http://maven.aliyun.com/nexus/content/groups/public/"
+        }
+
+        mavenCentral()
+    }
+
+    [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
+}

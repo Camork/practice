@@ -1,0 +1,17 @@
+List excluded = []
+
+List list = []
+Closure discoverSubProjects = {
+    rootDir.eachDirRecurse {
+        dir ->
+            if (!excluded.contains(dir.name)) {
+                dir.eachFileMatch({ it == 'build.gradle' }, { list += [dir.name] })
+            }
+    }
+}
+
+discoverSubProjects()
+
+include list.toArray(new String[0])
+include 'readableJdk'
+

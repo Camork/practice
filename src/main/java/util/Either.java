@@ -33,7 +33,7 @@ public abstract class Either<V> {
 		return new Either.Right<>(v);
 	}
 
-	public static <T, R> Function<T, Either> lift(CheckedFunction<T, R> function) {
+	public static <T, R> Function<T, Either> lift(ThrowableFunction<T, R> function) {
 		return v -> {
 			try {
 				return right(function.apply(v));
@@ -89,7 +89,7 @@ public abstract class Either<V> {
 	}
 
 	@FunctionalInterface
-	interface CheckedFunction<T, R> {
+	public interface ThrowableFunction<T, R> {
 		R apply(T t) throws Exception;
 	}
 

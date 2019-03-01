@@ -10,7 +10,14 @@ import java.util.Random;
  */
 public class TestCase extends Assertions {
 
-	public static void assertArraysAscending(int[] array) {
+    public static void assertArraysAscending(int[] array) {
+        assertArraysAscending(array, true);
+    }
+
+	public static void assertArraysAscending(int[] array,boolean print) {
+        if (print) {
+            System.out.println(Arrays.toString(array));
+        }
 		for (int i = 1; i < array.length - 1; i++) {
 			assertTrue(array[i] >= array[i - 1], array[i] + ">" + array[i - 1]);
 		}

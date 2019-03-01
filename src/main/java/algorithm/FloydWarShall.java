@@ -52,7 +52,8 @@ public class FloydWarShall {
                     System.out.print("\n   " + (i) + "->" + (j) + "     ");
                     if (dist[i][j] == M) {
                         System.out.print(" NA ");
-                    } else {
+                    }
+                    else {
                         System.out.print(dist[i][j] + "      ");
                         int count = 0;
                         int k = j;
