@@ -1,5 +1,7 @@
 package algorithm;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import util.Pair;
 
 import java.util.ArrayList;
@@ -43,33 +45,33 @@ public class BinarySearchTree {
      *  enqueue order: 6 3 10 1 4 9 11
      */
     public List<List<Integer>> printTreeByHierarchy() {
-        TreeNode root = rootNode;
+        TreeNode currentRoot = rootNode;
 
         Queue<TreeNode> queue = new LinkedList<>();
 
-        TreeNode last = root;
+        TreeNode last = currentRoot;
         TreeNode nextLast = null;
 
-        queue.offer(root);
+        queue.offer(currentRoot);
 
         List<List<Integer>> lists = new ArrayList<>();
         List<Integer> nodes = new ArrayList<>();
         while (!queue.isEmpty()) {
-            root = queue.poll();
+            currentRoot = queue.poll();
 
-            nodes.add(root.value);
+            nodes.add(currentRoot.value);
 
-            if (root.left != null) {
-                queue.offer(root.left);
-                nextLast = root.left;
+            if (currentRoot.left != null) {
+                queue.offer(currentRoot.left);
+                nextLast = currentRoot.left;
             }
 
-            if (root.right != null) {
-                queue.offer(root.right);
-                nextLast = root.right;
+            if (currentRoot.right != null) {
+                queue.offer(currentRoot.right);
+                nextLast = currentRoot.right;
             }
 
-            if (last == root) {
+            if (last == currentRoot) {//因为last是当前层的最后一个节点，如果等式成立，说明这层已经遍历完
                 last = nextLast;
 
                 lists.add(nodes);
@@ -81,12 +83,11 @@ public class BinarySearchTree {
         return lists;
     }
 
-    public void printTreeByPreOrder(TreeNode root) {
+    public void getTreeByInOrder(List<TreeNode> list, TreeNode root) {
         if (root != null) {
-            System.out.println(root.value);
-
-            printTreeByPreOrder(root.left);
-            printTreeByPreOrder(root.right);
+            getTreeByInOrder(list, root.left);
+            list.add(root);
+            getTreeByInOrder(list, root.right);
         }
     }
 
@@ -95,21 +96,21 @@ public class BinarySearchTree {
     }
 
     public TreeNode get(int value) {
-        TreeNode root = rootNode;
+        TreeNode currentRoot = rootNode;
 
         while (true) {
-            if (root == null) {
+            if (currentRoot == null) {
                 return null;
             }
 
-            if (value == root.value) {
-                return root;
+            if (value == currentRoot.value) {
+                return currentRoot;
             }
-            else if (value < root.value) {
-                root = root.left;
+            else if (value < currentRoot.value) {
+                currentRoot = currentRoot.left;
             }
             else {
-                root = root.right;
+                currentRoot = currentRoot.right;
             }
         }
     }
@@ -121,27 +122,27 @@ public class BinarySearchTree {
     }
 
     public TreeNode insert(int value) {
-        TreeNode root = rootNode;
+        TreeNode currentRoot = rootNode;
 
         TreeNode newNode = new TreeNode(value);
         while (true) {
-            if (value == root.value) {
+            if (value == currentRoot.value) {
                 return null;
             }
-            else if (value < root.value) {
-                if (root.left != null) {
-                    root = root.left;
+            else if (value < currentRoot.value) {
+                if (currentRoot.left != null) {
+                    currentRoot = currentRoot.left;
                 }
                 else {
-                    return root.left = newNode;
+                    return currentRoot.left = newNode;
                 }
             }
             else {
-                if (root.right != null) {
-                    root = root.right;
+                if (currentRoot.right != null) {
+                    currentRoot = currentRoot.right;
                 }
                 else {
-                    return root.right = newNode;
+                    return currentRoot.right = newNode;
                 }
             }
         }
@@ -162,24 +163,24 @@ public class BinarySearchTree {
                 currentRoot = currentRoot.right;
             }
             else {
-                TreeNode replaceNode = null;
+                TreeNode replacement;//代替者
                 if (currentRoot.left == null && currentRoot.right == null) {//无双子节点
-                    resetNodeParent(currentRoot, null);
+                    resetParentNode(currentRoot, null);
                 }
                 else if (currentRoot.left != null && currentRoot.right != null) {//双子节点
-                    replaceNode = getSuccessor(currentRoot);
+                    replacement = getSuccessor(currentRoot);
 
-                    replaceNode.left = currentRoot.left;
-                    replaceNode.right = currentRoot.right;
+                    replacement.left = currentRoot.left;
+                    replacement.right = currentRoot.right;
 
-                    resetNodeParent(replaceNode, null);       //重设后继节点的父节点
-                    resetNodeParent(currentRoot, replaceNode);//重设正在移除节点的父节点
+                    resetParentNode(replacement, null);       //重设后继节点的父节点
+                    resetParentNode(currentRoot, replacement);//重设正在移除节点的父节点
                 }
                 else if (currentRoot.left != null) {
-                    resetNodeParent(currentRoot, currentRoot.left);  //
+                    resetParentNode(currentRoot, currentRoot.left);  //
                 }                                                                  //
                 else {                                                             //单节点
-                    resetNodeParent(currentRoot, currentRoot.right);//
+                    resetParentNode(currentRoot, currentRoot.right);//
                 }                                                                  //
 
                 return;
@@ -187,21 +188,22 @@ public class BinarySearchTree {
         }
     }
 
-    private TreeNode getSuccessor(TreeNode node) {
-        TreeNode successor = null;
+    @Nullable
+    private TreeNode getSuccessor(@NotNull TreeNode node) {
+        List<TreeNode> list = new ArrayList<>();
 
-        if (node.right != null) {
-            successor = node.right;
+        getTreeByInOrder(list, getRoot());
 
-            while (successor.left != null) {
-                successor = successor.left;
-            }
+        int i = list.indexOf(node);
+
+        if (i > 0 && ++i < list.size()) {
+            return list.get(i);
         }
 
-        return successor;
+        return null;
     }
 
-    private void resetNodeParent(TreeNode node, TreeNode newNode) {
+    private void resetParentNode(TreeNode node, TreeNode newNode) {
         Pair<TreeNode,Boolean> pair = getParent(node);
 
         if (pair == null) {
@@ -218,6 +220,10 @@ public class BinarySearchTree {
         }
     }
 
+    /**
+     * @return 一对返回值：父节点和当前节点是否为左节点
+     */
+    @Nullable
     private Pair<TreeNode,Boolean> getParent(TreeNode node) {
         TreeNode root = rootNode;
         TreeNode parent = null;
@@ -248,18 +254,16 @@ public class BinarySearchTree {
         BinarySearchTree tree = new BinarySearchTree(41);
         tree.insert(20,65,11,29,50,91,28,32,72,99,27);
         tree.printTreeByHierarchy();
-
         tree.insert(26);
         tree.printTreeByHierarchy();
 
         TreeNode treeNode = tree.get(27);
         System.out.println(treeNode);
 
-        //tree.remove(20);//含双子节点
+        tree.remove(20);//含双子节点
         //tree.remove(72);//无子节点
-        tree.remove(27);//单子节点
+        //tree.remove(27);//单子节点
         tree.printTreeByHierarchy();
-        tree.printTreeByPreOrder(tree.getRoot());
     }
 
 }
