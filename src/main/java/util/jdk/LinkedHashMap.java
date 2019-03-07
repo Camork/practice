@@ -204,14 +204,15 @@ public class LinkedHashMap<K,V>
     // internal utilities
 
     // link at the end of list
-    private void linkNodeLast(LinkedHashMap.Entry<K,V> p) {
-        LinkedHashMap.Entry<K,V> last = tail;
-        tail = p;
-        if (last == null)
-            head = p;
+    private void linkNodeLast(LinkedHashMap.Entry<K, V> node) {
+        LinkedHashMap.Entry<K, V> last = tail;
+        tail = node;
+        if (last == null) {
+            head = node;
+        }
         else {
-            p.before = last;
-            last.after = p;
+            node.before = last;
+            last.after = node;
         }
     }
 
@@ -238,8 +239,7 @@ public class LinkedHashMap<K,V>
     }
 
     Node<K,V> newNode(int hash, K key, V value, Node<K,V> e) {
-        LinkedHashMap.Entry<K,V> p =
-            new LinkedHashMap.Entry<>(hash, key, value, e);
+        LinkedHashMap.Entry<K,V> p = new LinkedHashMap.Entry<>(hash, key, value, e);
         linkNodeLast(p);
         return p;
     }
@@ -265,18 +265,22 @@ public class LinkedHashMap<K,V>
         return t;
     }
 
-    void afterNodeRemoval(Node<K,V> e) { // unlink
-        LinkedHashMap.Entry<K,V> p =
-            (LinkedHashMap.Entry<K,V>)e, b = p.before, a = p.after;
-        p.before = p.after = null;
-        if (b == null)
-            head = a;
-        else
-            b.after = a;
-        if (a == null)
-            tail = b;
-        else
-            a.before = b;
+    void afterNodeRemoval(Node<K, V> node) { // unlink
+        LinkedHashMap.Entry<K, V> entry = (LinkedHashMap.Entry<K, V>) node, before = entry.before, after = entry.after;
+        entry.before = entry.after = null;//set to null
+        if (before == null) {
+            head = after;
+        }
+        else {
+            before.after = after;
+        }
+
+        if (after == null) {
+            tail = before;
+        }
+        else {
+            after.before = before;
+        }
     }
 
     void afterNodeInsertion(boolean evict) { // possibly remove eldest
@@ -287,27 +291,33 @@ public class LinkedHashMap<K,V>
         }
     }
 
-    void afterNodeAccess(Node<K,V> e) { // move node to last
+    void afterNodeAccess(Node<K,V> node) { // move node to last
         LinkedHashMap.Entry<K,V> last;
-        if (accessOrder && (last = tail) != e) {
-            LinkedHashMap.Entry<K,V> p =
-                (LinkedHashMap.Entry<K,V>)e, b = p.before, a = p.after;
-            p.after = null;
-            if (b == null)
-                head = a;
-            else
-                b.after = a;
-            if (a != null)
-                a.before = b;
-            else
-                last = b;
-            if (last == null)
-                head = p;
-            else {
-                p.before = last;
-                last.after = p;
+        if (accessOrder && (last = tail) != node) {
+            LinkedHashMap.Entry<K,V> entry = (LinkedHashMap.Entry<K,V>)node, before = entry.before, after = entry.after;
+            entry.after = null;
+            if (before == null) {//如果是Head
+                head = after;//设置头结点为after
             }
-            tail = p;
+            else {
+                before.after = after;
+            }
+
+            if (after != null) {
+                after.before = before;
+            }
+            else {
+                last = before;//??
+            }
+
+            if (last == null) {
+                head = entry;
+            }
+            else {
+                entry.before = last;
+                last.after = entry;
+            }
+            tail = entry;
             ++modCount;
         }
     }

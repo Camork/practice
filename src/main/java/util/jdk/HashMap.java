@@ -26,6 +26,7 @@
 package util.jdk;
 
 import jdk.internal.misc.SharedSecrets;
+import util.jdk.HashMap.Node;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
@@ -572,11 +573,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      */
     final Node<K,V> getNode(int hash, Object key) {
         Node<K,V>[] tab; Node<K,V> first, e; int n; K k;
-        if ((tab = table) != null && (n = tab.length) > 0 &&
-            (first = tab[(n - 1) & hash]) != null) {
-            if (first.hash == hash && // always check first node
-                ((k = first.key) == key || (key != null && key.equals(k))))
+        if ((tab = table) != null && (n = tab.length) > 0 && (first = tab[(n - 1) & hash]) != null) {
+            if (first.hash == hash && ((k = first.key) == key || (key != null && key.equals(k)))) { // always check first node
                 return first;
+            }
             if ((e = first.next) != null) {
                 if (first instanceof TreeNode)
                     return ((TreeNode<K,V>)first).getTreeNode(hash, key);
@@ -628,45 +628,53 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * @param evict if false, the table is in creation mode.
      * @return previous value, or null if none
      */
-    final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
-                   boolean evict) {
-        Node<K,V>[] tab; Node<K,V> p; int n, i;
-        if ((tab = table) == null || (n = tab.length) == 0)
-            n = (tab = resize()).length;
-        if ((p = tab[i = (n - 1) & hash]) == null)
-            tab[i] = newNode(hash, key, value, null);
+    final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {
+        Node<K,V>[] tab;
+        Node<K,V> node;
+        int length, index;
+        if ((tab = table) == null || (length = tab.length) == 0) {          //如果table为空,resize
+            length = (tab = resize()).length;
+        }
+        if ((node = tab[index = (length - 1) & hash]) == null) {            //如果要put的位置为空,直接放
+            tab[index] = newNode(hash, key, value, null);
+        }
         else {
-            Node<K,V> e; K k;
-            if (p.hash == hash &&
-                ((k = p.key) == key || (key != null && key.equals(k))))
-                e = p;
-            else if (p instanceof TreeNode)
-                e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
-            else {
+            Node<K,V> oldNode;
+            K key2;
+            if (node.hash == hash && ((key2 = node.key) == key || (key != null && key.equals(key2)))) { //如果hash和key与放入的相同
+                oldNode = node;                                       //坑里有人,先获取引用，后面会用来替换值
+            }
+            else if (node instanceof TreeNode) {
+                oldNode = ((TreeNode<K,V>)node).putTreeVal(this, tab, hash, key, value);  //红黑树
+            }
+            else { //链表操作
                 for (int binCount = 0; ; ++binCount) {
-                    if ((e = p.next) == null) {
-                        p.next = newNode(hash, key, value, null);
-                        if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
-                            treeifyBin(tab, hash);
+                    if ((oldNode = node.next) == null) {             //没有链表
+                        node.next = newNode(hash, key, value, null);//建立新链表
+                        if (binCount >= TREEIFY_THRESHOLD - 1) {     // -1 for 1st
+                            treeifyBin(tab, hash);                   //转红黑树
+                        }
                         break;
                     }
-                    if (e.hash == hash &&
-                        ((k = e.key) == key || (key != null && key.equals(k))))
+                    if (oldNode.hash == hash && ((key2 = oldNode.key) == key || (key != null && key.equals(key2)))) {//如果hash和key与放入的相同
                         break;
-                    p = e;
+                    }
+                    node = oldNode;
                 }
             }
-            if (e != null) { // existing mapping for key
-                V oldValue = e.value;
-                if (!onlyIfAbsent || oldValue == null)
-                    e.value = value;
-                afterNodeAccess(e);
+            if (oldNode != null) { // existing mapping for key
+                V oldValue = oldNode.value;
+                if (!onlyIfAbsent || oldValue == null) {//如果需要替换旧的
+                    oldNode.value = value;
+                }
+                afterNodeAccess(oldNode);
                 return oldValue;
             }
         }
         ++modCount;
-        if (++size > threshold)
+        if (++size > threshold) {
             resize();
+        }
         afterNodeInsertion(evict);
         return null;
     }
@@ -680,72 +688,92 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      *
      * @return the table
      */
+    @SuppressWarnings({"rawtypes", "unchecked"})
     final Node<K,V>[] resize() {
         Node<K,V>[] oldTab = table;
         int oldCap = (oldTab == null) ? 0 : oldTab.length;
-        int oldThr = threshold;
-        int newCap, newThr = 0;
+        int oldThreshold = threshold;
+        int newCap, newThreshold = 0;
         if (oldCap > 0) {
             if (oldCap >= MAXIMUM_CAPACITY) {
                 threshold = Integer.MAX_VALUE;
                 return oldTab;
             }
-            else if ((newCap = oldCap << 1) < MAXIMUM_CAPACITY &&
-                     oldCap >= DEFAULT_INITIAL_CAPACITY)
-                newThr = oldThr << 1; // double threshold
+            else if ((newCap = oldCap << 1) < MAXIMUM_CAPACITY && oldCap >= DEFAULT_INITIAL_CAPACITY) {//保证不会超过最大值容量
+                newThreshold = oldThreshold << 1; // double threshold
+            }
         }
-        else if (oldThr > 0) // initial capacity was placed in threshold
-            newCap = oldThr;
-        else {               // zero initial threshold signifies using defaults
+        else if (oldThreshold > 0) { // initial capacity was placed in threshold
+            newCap = oldThreshold;
+        }
+        else {//初始为空       // zero initial threshold signifies using defaults
             newCap = DEFAULT_INITIAL_CAPACITY;
-            newThr = (int)(DEFAULT_LOAD_FACTOR * DEFAULT_INITIAL_CAPACITY);
+            newThreshold = (int)(DEFAULT_LOAD_FACTOR * DEFAULT_INITIAL_CAPACITY);
         }
-        if (newThr == 0) {
+
+        if (newThreshold == 0) {//如果新的阈值是0，对应的是:当前表是空的，但是有阈值的情况
             float ft = (float)newCap * loadFactor;
-            newThr = (newCap < MAXIMUM_CAPACITY && ft < (float)MAXIMUM_CAPACITY ?
-                      (int)ft : Integer.MAX_VALUE);
+            if (newCap < MAXIMUM_CAPACITY && ft < (float)MAXIMUM_CAPACITY) {
+                newThreshold = (int)ft;
+            }
+            else {
+                newThreshold = Integer.MAX_VALUE;
+            }
         }
-        threshold = newThr;
-        @SuppressWarnings({"rawtypes","unchecked"})
+        threshold = newThreshold;
         Node<K,V>[] newTab = (Node<K,V>[])new Node[newCap];
         table = newTab;
         if (oldTab != null) {
-            for (int j = 0; j < oldCap; ++j) {
-                Node<K,V> e;
-                if ((e = oldTab[j]) != null) {
-                    oldTab[j] = null;
-                    if (e.next == null)
-                        newTab[e.hash & (newCap - 1)] = e;
-                    else if (e instanceof TreeNode)
-                        ((TreeNode<K,V>)e).split(this, newTab, j, oldCap);
-                    else { // preserve order
+            for (int oldIndex = 0; oldIndex < oldCap; ++oldIndex) {
+                Node<K,V> oldNode;
+                if ((oldNode = oldTab[oldIndex]) != null) {//如果坑中有东西
+                    oldTab[oldIndex] = null;
+                    if (oldNode.next == null) {            //单节点
+                        newTab[oldNode.hash & (newCap - 1)] = oldNode;//计算Index放入新的tab
+                    }
+                    else if (oldNode instanceof TreeNode) {//红黑树
+                        ((TreeNode<K,V>)oldNode).split(this, newTab, oldIndex, oldCap);
+                    }
+                    else { // preserve order of this linked list
                         Node<K,V> loHead = null, loTail = null;
                         Node<K,V> hiHead = null, hiTail = null;
                         Node<K,V> next;
                         do {
-                            next = e.next;
-                            if ((e.hash & oldCap) == 0) {
-                                if (loTail == null)
-                                    loHead = e;
-                                else
-                                    loTail.next = e;
-                                loTail = e;
-                            }
-                            else {
-                                if (hiTail == null)
-                                    hiHead = e;
-                                else
-                                    hiTail.next = e;
-                                hiTail = e;
-                            }
-                        } while ((e = next) != null);
+                            next = oldNode.next;
+                            /*
+                             * 两值与运算后，等于0代表小于oldCap，应该存放在低位
+                             *  10000
+                             *  01010
+                             *& ━━━━
+                             *  00000
+                             */
+                            if ((oldNode.hash & oldCap) == 0) {//      |
+                                if (loTail == null) {          //      |
+                                    loHead = oldNode;          //      |
+                                }                              //      |
+                                else {                         //添加oldNode到低位的链尾
+                                    loTail.next = oldNode;     //      |
+                                }                              //      |
+                                loTail = oldNode;              //      |
+                            }                                  //      |
+                            else {                             //————————————————————
+                                if (hiTail == null) {          //      |
+                                    hiHead = oldNode;          //      |
+                                }                              //      |
+                                else {                         //添加oldNode到高位的链尾
+                                    hiTail.next = oldNode;     //      |
+                                }                              //      |
+                                hiTail = oldNode;              //      |
+                            }                                  //      |
+                        } while ((oldNode = next) != null);    //      |
+
                         if (loTail != null) {
                             loTail.next = null;
-                            newTab[j] = loHead;
+                            newTab[oldIndex] = loHead;
                         }
                         if (hiTail != null) {
                             hiTail.next = null;
-                            newTab[j + oldCap] = hiHead;
+                            newTab[oldIndex + oldCap] = hiHead;//高位index=旧index+旧容量
                         }
                     }
                 }
@@ -759,23 +787,26 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * table is too small, in which case resizes instead.
      */
     final void treeifyBin(Node<K,V>[] tab, int hash) {
-        int n, index; Node<K,V> e;
-        if (tab == null || (n = tab.length) < MIN_TREEIFY_CAPACITY)
+        int length, index; Node<K,V> node;
+        if (tab == null || (length = tab.length) < MIN_TREEIFY_CAPACITY) {
             resize();
-        else if ((e = tab[index = (n - 1) & hash]) != null) {
-            TreeNode<K,V> hd = null, tl = null;
+        }
+        else if ((node = tab[index = (length - 1) & hash]) != null) {//index下面不是空
+            TreeNode<K,V> head = null, tail = null;
             do {
-                TreeNode<K,V> p = replacementTreeNode(e, null);
-                if (tl == null)
-                    hd = p;
-                else {
-                    p.prev = tl;
-                    tl.next = p;
+                TreeNode<K,V> p = replacementTreeNode(node, null); //建tree节点
+                if (tail == null) {
+                    head = p;
                 }
-                tl = p;
-            } while ((e = e.next) != null);
-            if ((tab[index] = hd) != null)
-                hd.treeify(tab);
+                else {
+                    p.prev = tail;
+                    tail.next = p;
+                }
+                tail = p;
+            } while ((node = node.next) != null);
+            if ((tab[index] = head) != null) {
+                head.treeify(tab);
+            }
         }
     }
 
@@ -818,36 +849,41 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      */
     final Node<K,V> removeNode(int hash, Object key, Object value,
                                boolean matchValue, boolean movable) {
-        Node<K,V>[] tab; Node<K,V> p; int n, index;
-        if ((tab = table) != null && (n = tab.length) > 0 &&
-            (p = tab[index = (n - 1) & hash]) != null) {
-            Node<K,V> node = null, e; K k; V v;
-            if (p.hash == hash &&
-                ((k = p.key) == key || (key != null && key.equals(k))))
-                node = p;
-            else if ((e = p.next) != null) {
-                if (p instanceof TreeNode)
-                    node = ((TreeNode<K,V>)p).getTreeNode(hash, key);
+        Node<K, V>[] tab;
+        Node<K, V> nodeHead;
+        int length, index;
+        if ((tab = table) != null && (length = tab.length) > 0 && (nodeHead = tab[index = (length - 1) & hash]) != null) {
+            Node<K, V> node = null;//the node need to be removed
+            Node<K, V> linkedNode;
+            K k;V v;
+            if (nodeHead.hash == hash && ((k = nodeHead.key) == key || (key != null && key.equals(k)))) {
+                node = nodeHead;//链表头
+            }
+            else if ((linkedNode = nodeHead.next) != null) {
+                if (nodeHead instanceof TreeNode) {//红黑树
+                    node = ((TreeNode<K, V>) nodeHead).getTreeNode(hash, key);
+                }
                 else {
                     do {
-                        if (e.hash == hash &&
-                            ((k = e.key) == key ||
-                             (key != null && key.equals(k)))) {
-                            node = e;
+                        if (linkedNode.hash == hash && ((k = linkedNode.key) == key || (key != null && key.equals(k)))) {
+                            node = linkedNode;
                             break;
                         }
-                        p = e;
-                    } while ((e = e.next) != null);
+                        nodeHead = linkedNode;
+                    } while ((linkedNode = linkedNode.next) != null);
                 }
             }
-            if (node != null && (!matchValue || (v = node.value) == value ||
-                                 (value != null && value.equals(v)))) {
-                if (node instanceof TreeNode)
-                    ((TreeNode<K,V>)node).removeTreeNode(this, tab, movable);
-                else if (node == p)
-                    tab[index] = node.next;
-                else
-                    p.next = node.next;
+            //if node Value is matched
+            if (node != null && (!matchValue || (v = node.value) == value || (value != null && value.equals(v)))) {
+                if (node instanceof TreeNode) {
+                    ((TreeNode<K, V>) node).removeTreeNode(this, tab, movable);
+                }
+                else if (node == nodeHead) {
+                    tab[index] = node.next;//如果是tab[index],移除它(没形成链表的情况)
+                }
+                else {
+                    nodeHead.next = node.next;//在链表中间
+                }
                 ++modCount;
                 --size;
                 afterNodeRemoval(node);
@@ -882,11 +918,11 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     public boolean containsValue(Object value) {
         Node<K,V>[] tab; V v;
         if ((tab = table) != null && size > 0) {
-            for (Node<K,V> e : tab) {
-                for (; e != null; e = e.next) {
-                    if ((v = e.value) == value ||
-                        (value != null && value.equals(v)))
+            for (Node<K,V> node : tab) {
+                for (; node != null; node = node.next) {
+                    if ((v = node.value) == value || (value != null && value.equals(v))) {
                         return true;
+                    }
                 }
             }
         }
@@ -2451,5 +2487,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             return true;
         }
     }
+
+
+    /* ---------------- HashMap Util -------------- */
+
 
 }
